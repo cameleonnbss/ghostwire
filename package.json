@@ -1,0 +1,43 @@
+{
+  "name": "ghostwire",
+  "version": "1.0.0",
+  "description": "GhostWire — Self-hosted VPN toolkit with a slick web UI. WireGuard-based, runs on Android (Termux), Linux, Windows, macOS — one Node.js runtime, zero build step.",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "ghostwire": "bin/ghostwire.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "vpn",
+    "wireguard",
+    "wireproxy",
+    "self-hosted",
+    "termux",
+    "android",
+    "linux",
+    "windows",
+    "tunnel",
+    "proxy"
+  ],
+  "license": "MIT",
+  "scripts": {
+    "start": "node bin/ghostwire.js start",
+    "dev": "node --watch bin/ghostwire.js start",
+    "test": "node --test",
+    "check": "node --check bin/ghostwire.js && node --check src/engine.js && node --check src/server.js && node --check src/qr.js && node --check src/util.js && node --check scripts/release.js",
+    "release": "node scripts/release.js"
+  },
+  "dependencies": {
+    "qrcode": "^1.5.4"
+  },
+  "dependencies-meta": {
+    "qrcode": "SVG/PNG QR code generation for the web UI and API"
+  },
+  "dependencies-meta-note": "Only runtime dep is qrcode; everything else is Node stdlib so it runs anywhere Node runs (Termux included).",
+  "devDependencies": {
+    "@types/node": "^24"
+  }
+}

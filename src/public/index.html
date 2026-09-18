@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark">
+  <title>GhostWire — Panneau VPN</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="bg-grid" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <img src="/favicon.svg" alt="" class="logo">
+      <div>
+        <h1>Ghost<span>Wire</span></h1>
+        <p class="tagline">WireGuard userspace · aucun root requis</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <span id="pill" class="pill unknown">···</span>
+      <button id="btn-settings" class="btn ghost" title="Paramètres">⚙︎</button>
+    </div>
+  </header>
+
+  <main class="grid">
+    <!-- Colonne gauche : contrôle -->
+    <section class="card control">
+      <h2>Tunnel</h2>
+      <div class="tunnel-visual">
+        <div id="orb" class="orb"></div>
+        <div id="status-text" class="status-text">Interrogation…</div>
+        <div id="uptime" class="uptime"></div>
+      </div>
+
+      <div class="actions">
+        <button id="btn-start" class="btn primary">▶ Démarrer</button>
+        <button id="btn-stop" class="btn danger">■ Arrêter</button>
+        <button id="btn-restart" class="btn">↻ Redémarrer</button>
+      </div>
+
+      <div class="proxies">
+        <div class="proxy" id="proxy-socks">
+          <span class="proto">SOCKS5</span>
+          <code>127.0.0.1:<b>1080</b></code>
+          <button class="btn mini" data-copy="127.0.0.1:1080">copier</button>
+        </div>
+        <div class="proxy" id="proxy-http">
+          <span class="proto">HTTP</span>
+          <code>127.0.0.1:<b>8888</b></code>
+          <button class="btn mini" data-copy="127.0.0.1:8888">copier</button>
+        </div>
+      </div>
+
+      <p class="hint">Branchez vos apps sur ces proxys (ou utilisez le mode VPN d'Android via une app du type SocksDroid/Every Proxy) — tout passera dans le tunnel WireGuard.</p>
+    </section>
+
+    <!-- Colonne droite : infos -->
+    <section class="card">
+      <h2>Réseau</h2>
+      <div class="kv">
+        <span>IP publique</span><b id="ip">—</b>
+        <span>Hôte</span><b id="host-info">—</b>
+        <span>Config</span><b id="conf-file">—</b>
+        <span>wireproxy</span><b id="bin-status">—</b>
+      </div>
+
+      <h2>Outils</h2>
+      <div class="actions">
+        <button id="btn-speed" class="btn">⚡ Speedtest</button>
+        <button id="btn-latency" class="btn">📡 Latence</button>
+        <button id="btn-qr" class="btn">🔳 QR code</button>
+      </div>
+      <pre id="tool-output" class="console" hidden></pre>
+    </section>
+
+    <!-- Configuration -->
+    <section class="card wide">
+      <h2>Configuration WireGuard</h2>
+      <div class="tabs">
+        <button class="tab active" data-tab="import">Importer</button>
+        <button class="tab" data-tab="generate">Générer</button>
+        <button class="tab" data-tab="current">Actuelle</button>
+      </div>
+
+      <div id="tab-import" class="tab-pane active">
+        <textarea id="conf-input" spellcheck="false" placeholder="[Interface]
+PrivateKey = …
+Address = 10.x.x.x/32
+DNS = 1.1.1.1
+
+[Peer]
+PublicKey = …
+Endpoint = host:port
+AllowedIPs = 0.0.0.0/0"></textarea>
+        <div class="actions">
+          <button id="btn-import" class="btn primary">Enregistrer la config</button>
+          <label class="btn file-btn">📂 Choisir un fichier .conf
+            <input type="file" id="conf-file-input" accept=".conf,.txt" hidden>
+          </label>
+        </div>
+      </div>
+
+      <div id="tab-generate" class="tab-pane">
+        <p class="hint">Génère un pair de clés + une PSK prêtes à coller côté serveur/serveur VPN, et pré-remplit l'onglet Importer.</p>
+        <div class="actions">
+          <button id="btn-genkey" class="btn primary">🔑 Générer clés + config</button>
+        </div>
+        <div class="gen-form">
+          <label>Endpoint du serveur <input id="gen-endpoint" placeholder="vpn.exemple.com:51820"></label>
+          <label>Adresse client <input id="gen-address" placeholder="10.66.66.2/32"></label>
+          <label>AllowedIPs <input id="gen-allowed" value="0.0.0.0/0"></label>
+        </div>
+      </div>
+
+      <div id="tab-current" class="tab-pane">
+        <pre id="conf-current" class="console">Aucune config chargée.</pre>
+        <div class="actions">
+          <button id="btn-refresh-conf" class="btn">↻ Rafraîchir</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Logs -->
+    <section class="card wide">
+      <h2>Journal du tunnel</h2>
+      <pre id="logs" class="console">—</pre>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <span>GhostWire · auto-hébergé · Termux / Linux / Windows / macOS</span>
+    <span id="panel-uptime"></span>
+  </footer>
+
+  <div id="modal" class="modal" hidden>
+    <div class="modal-box">
+      <h3 id="modal-title">QR code</h3>
+      <div id="modal-body" class="modal-body"></div>
+      <button class="btn" id="modal-close">Fermer</button>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

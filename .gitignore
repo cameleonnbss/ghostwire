@@ -1,0 +1,30 @@
+# Secrets / environnement
+.env
+.env.*
+!.env.example
+
+# Dépendances
+node_modules/
+
+# Binaire wireproxy téléchargé via `ghostwire setup` (jamais commité)
+bin/wireproxy
+bin/wireproxy.exe
+bin/*.tar.gz
+
+# Données runtime générées (clés, configs, logs)
+data/
+*.log
+
+# Build / releases
+dist/
+build/
+*.zip
+*.tar.gz
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Éditeurs
+.vscode/
+.idea/
