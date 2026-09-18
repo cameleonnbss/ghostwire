@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark, blue-accented theme matching the panel UI -->
+    <style name="Theme.GhostWire" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#FF06090F</item>
+        <item name="android:statusBarColor">#FF06090F</item>
+        <item name="android:navigationBarColor">#FF06090F</item>
+        <item name="android:colorAccent">#FF4F8EF7</item>
+    </style>
+</resources>

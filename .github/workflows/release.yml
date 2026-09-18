@@ -49,36 +49,47 @@ jobs:
           tar -xzf /tmp/wg.tar.gz -C bundle/bin
           rm -f /tmp/wg.tar.gz
 
-      - name: Assemble le bundle
+      - name: Assemble the bundle
         shell: bash
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           [ -n "${{ matrix.termux }}" ] && VERSION="${VERSION}-termux"
           NAME="ghostwire-${{ matrix.name }}-${VERSION}"
           mkdir -p "dist/${NAME}"
-          cp -r bin src scripts package.json README.md LICENSE .env.example install.sh "dist/${NAME}/" 2>/dev/null || true
+          cp -r bin src scripts package.json README.md LICENSE .env.example docs "dist/${NAME}/" 2>/dev/null || \
+            cp -r bin src scripts package.json README.md LICENSE .env.example "dist/${NAME}/"
           cp -r bundle/bin/* "dist/${NAME}/bin/"
-          cp "dist/${NAME}/bin/wireproxy" "dist/${NAME}/bin/wireproxy" 2>/dev/null || true
-          if [ -n "${{ matrix.termux }}" ]; then
-            cp docs/termux.md "dist/${NAME}/TERMUX.md" 2>/dev/null || true
-          fi
           chmod +x "dist/${NAME}/bin/wireproxy" 2>/dev/null || true
           tar -czf "dist/${NAME}.tar.gz" -C dist "${NAME}"
           echo "NAME=${NAME}" >> "$GITHUB_ENV"
 
-      - name: Archive Windows (zip)
+      - name: Build Windows tray app (self-contained)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $name = $env:NAME
-          if (-not $name) { $name = "ghostwire-windows-amd64-$($env:GITHUB_REF_NAME -replace '^v','')" }
-          Compress-Archive -Path "dist/$name" -DestinationPath "dist/$name.zip" -Force
+          dotnet publish desktop-windows/GhostWireTray -c Release -r win-x64 --self-contained true `
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
+            -o dist/trayapp
+          $ver = $env:GITHUB_REF_NAME -replace '^v',''
+          Compress-Archive -Path "dist/trayapp/GhostWireTray.exe" `
+            -DestinationPath "dist/ghostwire-windows-tray-$ver.zip" -Force
+
+      - name: Build Android APK
+        if: matrix.name == 'linux-amd64'
+        shell: bash
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          bash scripts/build-android.sh
+          cp android/GhostWire.apk dist/
 
       - name: Upload artefact
         uses: actions/upload-artifact@v4
         with:
           name: bundle-${{ matrix.name }}
-          path: dist/*.tar.gz
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/*.apk
           if-no-files-found: error
 
   publish:
@@ -96,7 +107,7 @@ jobs:
       - name: Checksums
         run: |
           cd dist
-          for f in *.tar.gz *.zip; do
+          for f in *.tar.gz *.zip *.apk; do
             [ -f "$f" ] || continue
             sha256sum "$f"
           done > checksums.txt
@@ -110,17 +121,20 @@ jobs:
           body: |
             ## GhostWire ${{ inputs.tag || github.ref_name }}
 
-            ### Installation rapide
-            - **Linux / macOS / Termux** : `bash install.sh` (ou voir `docs/termux.md` pour Android)
-            - **Windows** : `powershell -ExecutionPolicy Bypass -File install.ps1`
-            - **Docker** : `docker run -p 8080:8080 ghcr.io/${{ github.repository }}:latest`
+            ### Quick start
+            - **Linux / macOS / Termux (Android)**: see the commands in the README, or `bash install.sh`
+            - **Windows**: unzip a bundle, run `install.ps1` — or grab `ghostwire-windows-tray-*.zip` for the tray app
+            - **Android app**: install `GhostWire.apk`, enter your panel address, sign in
+            - **Docker**: `docker run -p 8080:8080 ghcr.io/${{ github.repository }}:latest`
 
-            ### Bundles
-            Chaque archive contient le panneau + le binaire `wireproxy` correspondant.
-            Vérifiez l'intégrité avec `checksums.txt` (SHA-256).
+            ### What's inside
+            Every `*.tar.gz` bundle ships the panel + the matching `wireproxy` binary.
+            The APK and the tray app talk to any running panel over HTTP.
+            Verify downloads with `checksums.txt` (SHA-256).
           files: |
             dist/*.tar.gz
             dist/*.zip
+            dist/*.apk
             dist/checksums.txt
           draft: false
           prerelease: ${{ contains(inputs.tag || github.ref_name, '-') }}

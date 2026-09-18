@@ -31,7 +31,7 @@ export function generateKeyPair() {
 /** Dérive la clé publique WireGuard (base64) d'une clé privée (base64). */
 export function publicKeyFromPrivate(privateKeyB64) {
   const rawPriv = Buffer.from(privateKeyB64, 'base64');
-  if (rawPriv.length !== 32) throw new Error('Clé privée invalide (32 octets attendus)');
+  if (rawPriv.length !== 32) throw new Error('Invalid private key (32 bytes expected)');
   // Préfixe DER PKCS#8 fixe pour une clé privée X25519.
   const der = Buffer.concat([
     Buffer.from('302e020100300506032b656e04220420', 'hex'), rawPriv,
@@ -176,24 +176,24 @@ export class TunnelManager {
     }
   }
 
-  /** Démarre le tunnel — se résout quand les proxys écoutent. */
+  /** Start the tunnel - resolves once the proxies are listening. */
   async start() {
-    if (this.proc) throw new Error('Le tunnel tourne déjà');
+    if (this.proc) throw new Error('Tunnel is already running');
     if (!fs.existsSync(this.wgConfPath)) {
       this.status = 'error';
-      this.lastError = `Config WireGuard introuvable : ${this.wgConfPath}. Importez un .conf ou générez-en un (npx ghostwire genkey).`;
+      this.lastError = `WireGuard config not found: ${this.wgConfPath}. Import a .conf or generate one.`;
       throw new Error(this.lastError);
     }
     if (!this.checkBinary()) {
       this.status = 'error';
-      this.lastError = `Binaire wireproxy introuvable : ${this.wireproxyBin}. Lancez : npx ghostwire setup`;
+      this.lastError = `wireproxy binary not found: ${this.wireproxyBin}. Run: ghostwire setup`;
       throw new Error(this.lastError);
     }
     ensureDir(this.dataDir);
     this.buildProxyConf();
     this.status = 'starting';
     this.lastError = null;
-    log.info(`Démarrage du tunnel (SOCKS5 :${this.socksPort}, HTTP :${this.httpPort})…`);
+    log.info(`Starting tunnel (SOCKS5 :${this.socksPort}, HTTP :${this.httpPort})...`);
 
     return new Promise((resolve, reject) => {
       const proc = spawn(this.wireproxyBin, ['-c', this.proxyConfPath], {
@@ -214,7 +214,7 @@ export class TunnelManager {
         settled = true;
         this.status = 'running';
         this.startedAt = Date.now();
-        log.ok(`Tunnel opérationnel (SOCKS5 :${this.socksPort}, HTTP :${this.httpPort})`);
+        log.ok(`Tunnel up (SOCKS5 :${this.socksPort}, HTTP :${this.httpPort})`);
         resolve();
       };
       const onLine = (buf) => {
@@ -232,7 +232,7 @@ export class TunnelManager {
         this._tail(`wireproxy terminé (code ${code})`);
         if (this.proc === proc) this.proc = null;
         if (settled) { this.status = 'stopped'; this.startedAt = null; }
-        else fail(`wireproxy a quitté immédiatement (code ${code}) — config invalide ?`);
+        else fail(`wireproxy exited immediately (code ${code}) - invalid config?`);
       });
 
       // Sonde fiable : le tunnel est prêt quand le port SOCKS5 accepte une
@@ -244,7 +244,7 @@ export class TunnelManager {
           if (await portOpen('127.0.0.1', this.socksPort)) { ok(); return; }
           await sleep(250);
         }
-        if (!settled) fail(`wireproxy n'écoute pas sur le port SOCKS ${this.socksPort} après 10 s`);
+        if (!settled) fail(`wireproxy is not listening on SOCKS port ${this.socksPort} after 10s`);
       };
       probe();
     });
@@ -260,7 +260,7 @@ export class TunnelManager {
     }
     this.status = 'stopped';
     this.startedAt = null;
-    log.info('Tunnel arrêté');
+    log.info('Tunnel stopped');
   }
 
   /** Redémarre le tunnel. */

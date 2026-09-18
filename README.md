@@ -1,133 +1,174 @@
-# 👻 GhostWire
+# GhostWire
 
-**Panneau VPN auto-hébergé avec interface web — WireGuard 100 % userspace.**
-Un seul runtime (Node.js ≥ 18), zéro root, zéro dépendance native. Tourne sur **Android (Termux), Linux, Windows et macOS**.
+**Self-hosted VPN panel with a modern web UI — userspace WireGuard, no root.**
+One runtime (Node.js >= 18), zero native deps. Runs on **Android (Termux), Linux, Windows and macOS**.
 
-> ⚠️ **Avertissement** : GhostWire est un outil réseau à des fins d'usage légitime (confidentialité, accès distant à vos propres serveurs, contournement de censures légales). Vérifiez la législation de votre pays. N'utilisez jamais un VPN pour des activités illégales.
+> Warning: use GhostWire only for legitimate purposes (privacy, reaching your own servers, lawful censorship circumvention). Check the laws that apply to you.
 
----
+## Highlights
 
-## ✨ Fonctionnalités
+- **Web panel** — dark, modern dashboard: tunnel orb, live logs, tools
+- **Accounts** — create users (`admin` / `viewer` roles), token sessions, login rate limiting
+- **Userspace tunnel** — driven by [wireproxy](https://github.com/pufferffish/wireproxy): no root, no TUN device
+- **SOCKS5 + HTTP proxies** — point any app at them, traffic flows through WireGuard
+- **Key manager** — X25519 key pairs, PSK, `.conf` builder, QR code for the mobile WireGuard app
+- **Network tools** — Cloudflare speed test, TCP latency, public IP check
+- **Windows tray app** (C# / .NET 8) — starts/stops the panel, toggles the system proxy
+- **Android app** (Kotlin) — native login screen, then the panel in a WebView
+- **Plug-and-play hosting** — copy-paste commands for Termux and Linux below
 
-| | |
-|---|---|
-| 🖥️ **Interface web néon** | dashboard temps réel : statut, orbite animée, logs, uptime |
-| 🔌 **Tunnel userspace** | basé sur [wireproxy](https://github.com/pufferffish/wireproxy) — pas de root, pas de TUN |
-| 🧦 **Proxys SOCKS5 + HTTP** | branchez n'importe quelle app dans le tunnel |
-| 🔑 **Gestionnaire de clés** | génération X25519 (compat WireGuard), PSK, configs `.conf` |
-| 📱 **QR code** | scannez la config depuis l'app mobile WireGuard |
-| ⚡ **Outils réseau** | speedtest (Cloudflare), latence TCP, IP publique |
-| 🛡️ **Token admin** | routes sensibles protégées, comparaison à temps constant, clé privée masquée dans l'UI |
-| 📦 **1 seule dépendance** | `qrcode` — tout le reste c'est Node stdlib |
-| 🐳 **Docker multi-arch** | amd64 + arm64, image GHCR à chaque release |
-| 🤖 **CI/CD complète** | tests 3 OS, bundles par plateforme avec binaire embarqué, releases GitHub |
+## Quick start
 
----
-
-## 🚀 Installation
-
-### Android (Termux)
+### Android (Termux) — copy-paste
 
 ```bash
-pkg update && pkg install nodejs-lts git
-git clone https://github.com/OWNER/ghostwire.git
-cd ghostwire
-npm install --omit=dev
-node bin/ghostwire.js setup     # télécharge wireproxy (arm64)
-node bin/ghostwire.js start     # panneau sur http://localhost:8080
+pkg update -y && pkg install -y nodejs-lts git
+git clone https://github.com/cameleonnbss/ghostwire.git ~/ghostwire
+cd ~/ghostwire
+npm install --omit=dev --no-audit --no-fund
+node bin/ghostwire.js setup
+node bin/ghostwire.js useradd admin mypassword
+node bin/ghostwire.js start
 ```
 
-> Guide détaillé (wakelock, stockage, démarrage auto) : **[docs/termux.md](docs/termux.md)**
+Open `http://127.0.0.1:8080` in the phone browser, sign in, done.
+Full Android guide (wake-lock, autostart, system-wide VPN): [docs/termux.md](docs/termux.md)
 
-### Linux / macOS
+### Linux — copy-paste
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/OWNER/ghostwire/main/install.sh | bash
-# ou manuellement :
-git clone https://github.com/OWNER/ghostwire.git && cd ghostwire
-npm install --omit=dev && node bin/ghostwire.js setup && node bin/ghostwire.js start
+git clone https://github.com/cameleonnbss/ghostwire.git ~/ghostwire
+cd ~/ghostwire
+npm install --omit=dev --no-audit --no-fund
+node bin/ghostwire.js setup
+node bin/ghostwire.js useradd admin mypassword
+node bin/ghostwire.js start          # panel on http://<server-ip>:8080
 ```
 
-### Windows (PowerShell)
+As a systemd service:
+
+```bash
+sudo tee /etc/systemd/system/ghostwire.service >/dev/null <<'EOF'
+[Unit]
+Description=GhostWire VPN panel
+After=network-online.target
+[Service]
+WorkingDirectory=/home/YOURUSER/ghostwire
+ExecStart=/usr/bin/node bin/ghostwire.js start
+Restart=on-failure
+[Install]
+WantedBy=multi-user.target
+EOF
+sudo systemctl enable --now ghostwire
+```
+
+### Windows
 
 ```powershell
-git clone https://github.com/OWNER/ghostwire.git
+git clone https://github.com/cameleonnbss/ghostwire.git
 cd ghostwire
 npm install --omit=dev
 node bin\ghostwire.js setup
+node bin\ghostwire.js useradd admin mypassword
 node bin\ghostwire.js start
 ```
+
+Or use the **tray app**: download `ghostwire-windows-tray-*.zip` from Releases,
+put `GhostWireTray.exe` next to a `server/` folder (a bundle's content), and run it.
+It starts the panel, lives in the tray, and can switch the Windows system proxy
+to the tunnel with one click.
+
+### Android app
+
+Install `GhostWire.apk` from Releases, enter your panel address
+(`http://<panel-ip>:8080`), your username/password, tap **Connect**.
 
 ### Docker
 
 ```bash
-docker run -d --name ghostwire -p 8080:8080 -v ghostwire-data:/data ghcr.io/OWNER/ghostwire:latest
+docker run -d --name ghostwire -p 8080:8080 -v ghostwire-data:/data ghcr.io/cameleonnbss/ghostwire:latest
 ```
 
----
+## Using the VPN
 
-## 🧭 Utilisation
+1. **Import a config** — paste your WireGuard `.conf` (from your provider or your own server) in the *Import* tab, save, then press **Start**.
+2. **Route apps through it** — set the app's proxy to `socks5://127.0.0.1:1080` or `http://127.0.0.1:8888`. For system-wide routing on Android use the official WireGuard app with the QR code, or a SOCKS wrapper app.
+3. **Verify** — hit *Speed test*: the public IP shown should be your VPN server's.
 
-```
-ghostwire start              # panneau + tunnel
-ghostwire setup              # télécharge wireproxy pour votre plateforme
-ghostwire genkey             # paire de clés WireGuard
-ghostwire import mon.conf    # importe une config .conf
-ghostwire qr                 # QR code de la config courante
-ghostwire status             # état JSON du tunnel
-ghostwire doctor             # diagnostic environnement
-```
+## Accounts & security
 
-Options de `start` : `--port 8080` `--host 0.0.0.0` `--token <secret>` `--data ./data` `--demo`
-
-### Envoyer votre trafic dans le tunnel
-
-1. **Importer une config** : collez votre `.conf` WireGuard (fournisseur, ou votre propre serveur) dans l'onglet *Importer* de l'interface → *Enregistrer* → *▶ Démarrer*.
-2. **Utiliser les proxys** : configurez votre navigateur/app sur `socks5://127.0.0.1:1080` ou `http://127.0.0.1:8888`.
-3. **Tout le téléphone (Android)** : utilisez une app du type *Every Proxy* / *SocksDroid* pointant vers `127.0.0.1:1080`, ou les apps **WireGuard + "Tunnel via proxy"**. Voir [docs/termux.md](docs/termux.md).
-4. **Vérifier** : bouton *⚡ Speedtest* — l'IP affichée doit être celle du serveur VPN.
-
----
-
-## 🏗️ Architecture
-
-```
-┌────────────┐   HTTP    ┌─────────────┐    spawn    ┌────────────┐
-│ Navigateur │ ────────▶ │ src/server  │ ──────────▶ │ wireproxy  │
-│  (UI néon) │           │  API + stat.│             │ (userspace │
-└────────────┘           └─────────────┘             │  WireGuard)│
-                                                     └─────┬──────┘
-   src/engine.js : clés, parsing .conf, cycle de vie          │ UDP
-   src/qr.js     : QR code (paquet `qrcode`)                  ▼
-   src/util.js   : logs, download, plateforme              Serveur VPN
+```bash
+node bin/ghostwire.js useradd alice mypass123           # first user = admin
+node bin/ghostwire.js useradd bob viewpass viewer       # role: viewer
+node bin/ghostwire.js passwd alice newpass123           # password change
 ```
 
-- **Aucune interface TUN** : wireproxy expose le tunnel en proxys locaux → compatible Android non-root, Windows sans driver, conteneurs sans `--privileged`.
-- **Sécurité** : token admin (`GW_TOKEN`) requis pour toute action (start/stop/import/clés), clés privées jamais renvoyées par l'API (masquage `***`), données écrites en mode `0600`.
+- No account exists -> the panel is **open-mode** (handy on localhost/LAN).
+- Once one account exists, every route requires a session (bearer token or cookie).
+- Roles: `admin` = everything, `viewer` = read-only status/tools.
+- 10 failed logins = 10-minute lockout. Passwords are scrypt-hashed.
+- Private keys are masked (`***`) in every API response.
 
----
+## CLI reference
 
-## 🧪 Développement
+```
+ghostwire start              panel + tunnel
+ghostwire setup              download wireproxy for this platform
+ghostwire useradd <u> <p>    create an account (first = admin)
+ghostwire passwd <u> <p>     change a password
+ghostwire genkey             WireGuard key pair
+ghostwire import <file>      import a .conf
+ghostwire qr                 export config QR code (SVG)
+ghostwire status             tunnel state (JSON)
+ghostwire doctor             environment diagnostics
+```
+
+Start options: `--port 8080` `--host 0.0.0.0` `--data ./data` `--demo`
+
+## Architecture
+
+```
+Browser / Android app / Windows tray
+        │ HTTP + bearer token
+        ▼
+src/server.js ── REST API + static UI
+src/auth.js   ── accounts, sessions, lockout
+src/engine.js ── keys, .conf parsing, wireproxy lifecycle
+        │ spawn
+        ▼
+wireproxy (userspace WireGuard) ──UDP──► VPN server
+        │
+   SOCKS5 :1080 / HTTP :8888 local proxies
+```
+
+## Development
 
 ```bash
 npm install
-npm test          # tests unitaires + API (node:test natif)
-npm run check     # vérif syntaxe
-npm run dev       # démarrage avec rechargement
+npm test          # 46 tests (node:test)
+npm run check     # syntax check
+npm run dev       # start with reload
 ```
 
-## 📦 Releases
+Native apps:
 
-- Un **tag `v*`** déclenche la construction de bundles par plateforme (`linux-amd64`, `linux-arm64`, `linux-arm`, `windows-amd64`, `macos-all`, `termux-aarch64`) avec le binaire wireproxy correspondant **embarqué**, des checksums SHA-256, et une **GitHub Release** automatique.
-- L'image Docker `ghcr.io/OWNER/ghostwire:{tag,latest}` est poussée en multi-arch.
+```bash
+# Windows tray app (needs .NET 8 SDK)
+dotnet build desktop-windows/GhostWireTray
 
-## 🗺️ Roadmap
+# Android APK (needs Android SDK + JDK 17; downloads kotlinc itself)
+scripts/build-android.ps1      # Windows
+bash scripts/build-android.sh  # Linux/macOS
+```
 
-- [ ] Mode multi-tunnels (profiles switchables depuis l'UI)
-- [ ] Statistiques de trafic par proxy (compteurs octets)
-- [ ] App Android (WebView wrapper APK)
-- [ ] WireGuard server mode : générer les configs peers côté serveur
+## Releases
 
-## 📄 Licence
+Tagging `v*` triggers GitHub Actions:
 
-MIT — voir [LICENSE](LICENSE). Le binaire [wireproxy](https://github.com/pufferffish/wireproxy) (ISC) est téléchargé séparément, jamais commité.
+- CI: tests on Ubuntu / Windows / macOS (Node 20/22/24) + APK build
+- Release: per-platform bundles (linux amd64/arm64/arm, macOS, Termux, Windows) with the `wireproxy` binary embedded, the self-contained **Windows tray app**, the signed **Android APK**, SHA-256 checksums, and a GitHub Release
+- Docker multi-arch image to `ghcr.io`
+
+## License
+
+MIT — see [LICENSE](LICENSE). The [wireproxy](https://github.com/pufferffish/wireproxy) binary (ISC) is downloaded at setup time, never committed.

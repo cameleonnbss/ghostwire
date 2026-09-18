@@ -1,15 +1,17 @@
 #!/usr/bin/env node
 /**
- * GhostWire CLI — héberge le panneau + tunnel partout où Node tourne
- * (Termux/Android, Linux, Windows, macOS).
+ * GhostWire CLI — host the panel + tunnel anywhere Node runs
+ * (Android/Termux, Linux, Windows, macOS).
  *
- *   ghostwire setup            télécharge le binaire wireproxy adapté à l'OS
- *   ghostwire start            démarre panneau + tunnel
- *   ghostwire status           état du tunnel
- *   ghostwire genkey           génère un pair de clés WireGuard
- *   ghostwire import <fichier> importe un .conf WireGuard
- *   ghostwire doctor           diagnostic environnement
- *   ghostwire release [ver]    prépare les archives de release locales
+ *   ghostwire setup              download the wireproxy binary for this OS
+ *   ghostwire start              start the web panel + tunnel
+ *   ghostwire useradd <u> <p>    create an account (first = admin)
+ *   ghostwire passwd <u> <p>     change an account password
+ *   ghostwire status             tunnel state as JSON
+ *   ghostwire genkey             generate a WireGuard key pair
+ *   ghostwire import <file>      import a WireGuard .conf
+ *   ghostwire doctor             environment diagnostics
+ *   ghostwire release [version]  build local release archives
  */
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -17,38 +19,42 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { platformInfo, log, downloadFile, ensureDir, writeFileSafe } from '../src/util.js';
 import { TunnelManager, generateKeyPair, parseWgConf } from '../src/engine.js';
-import { startServer } from '../src/server.js';
+import { AuthStore } from '../src/auth.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WIREPROXY_VERSION = 'v1.1.3';
 const WIREPROXY_REPO = 'pufferffish/wireproxy';
+const VERSION = '1.1.0';
 
 const HELP = `
-GhostWire — panneau VPN auto-hébergé (WireGuard userspace)
+GhostWire - self-hosted VPN panel (WireGuard userspace, no root)
 
 Usage:
-  ghostwire <commande> [options]
+  ghostwire <command> [options]
 
-Commandes:
-  setup              Télécharge wireproxy pour votre plateforme (auto-détectée)
-  start              Démarre le panneau web + le tunnel
-  status             Affiche l'état du tunnel
-  genkey             Génère un pair de clés WireGuard (base64 wg)
-  import <file>      Importe un fichier .conf WireGuard
-  qr                 Exporte la config actuelle en QR code (SVG)
-  doctor             Diagnostic : Node, OS, binaire, config, connectivité
-  release [version]  Construit les archives de release dans dist/
-  help               Affiche cette aide
+Panel & accounts:
+  start                Start the web panel (and optionally the tunnel)
+  useradd <u> <pass>   Create an account - the first one becomes admin
+  passwd <u> <pass>    Change an account password
+  status               Print tunnel state as JSON
 
-Options:
-  --port <n>         Port du panneau (défaut 8080, ou $GW_PORT)
-  --host <addr>      Adresse d'écoute (défaut 0.0.0.0, ou $GW_HOST)
-  --token <secret>   Token admin (défaut $GW_TOKEN ; sans lui, pas d'auth)
-  --data <dir>       Dossier de données (défaut ./data)
-  --demo             Mode démo : UI testable sans tunnel réel
+WireGuard helpers:
+  setup                Download the wireproxy binary for this platform
+  genkey               Generate a WireGuard key pair
+  import <file>        Import a .conf into the panel
+  qr                   Export the current config as a QR code (SVG)
+
+Maintenance:
+  doctor               Check Node, OS, binary, config, connectivity
+  release [version]    Build release archives into dist/
+  help                 Show this help
+
+Start options:
+  --port <n>           Panel port (default 8080, env GW_PORT)
+  --host <addr>        Bind address (default 0.0.0.0, env GW_HOST)
+  --data <dir>         Data directory (default ./data)
+  --demo               Demo mode: UI without a real tunnel
 `;
-
-/* ── Aides CLI ─────────────────────────────────────────────────────────── */
 
 function parseArgs(argv) {
   const args = { _: [] };
@@ -75,71 +81,37 @@ function wireproxyBinPath() {
   return path.join(ROOT, 'bin', platformInfo().platform === 'win32' ? 'wireproxy.exe' : 'wireproxy');
 }
 
-/** Télécharge et installe wireproxy dans bin/. */
 async function setupWireproxy() {
   const { isTermux } = platformInfo();
-  if (isTermux) {
-    log.warn('Termux détecté : si le stockage est verrouillé, lancez d\u2019abord : termux-setup-storage');
-  }
+  if (isTermux) log.warn('Termux detected: if storage is locked, run: termux-setup-storage');
   const asset = wireproxyAsset();
   const url = `https://github.com/${WIREPROXY_REPO}/releases/download/${WIREPROXY_VERSION}/${asset}`;
   const binDir = path.join(ROOT, 'bin');
   const archive = path.join(binDir, asset);
   ensureDir(binDir);
-  log.info(`Téléchargement de ${asset} (${WIREPROXY_VERSION})…`);
+  log.info(`Downloading ${asset} (${WIREPROXY_VERSION})...`);
   await downloadFile(url, archive);
-  log.info('Extraction…');
-  // Chemins relatifs + cwd : GNU tar sur Windows lit "C:\…" comme un hôte distant
+  log.info('Extracting...');
+  // Relative paths + cwd: GNU tar on Windows reads "C:\..." as a remote host
   execSync(`tar -xzf "${asset}"`, { cwd: binDir, stdio: 'pipe' });
   fs.rmSync(archive, { force: true });
   const bin = wireproxyBinPath();
-  if (!fs.existsSync(bin)) {
-    throw new Error(`Archive extraite mais binaire introuvable : ${bin}`);
-  }
-  try { fs.chmodSync(bin, 0o755); } catch { /* certains FS (Android) ignorent le chmod */ }
-  log.ok(`wireproxy installé : ${bin}`);
+  if (!fs.existsSync(bin)) throw new Error(`Archive extracted but binary not found: ${bin}`);
+  try { fs.chmodSync(bin, 0o755); } catch { /* some FS ignore chmod (Android) */ }
+  log.ok(`wireproxy installed: ${bin}`);
   return bin;
 }
 
-/** Importe un .conf WireGuard dans data/. */
-function importConf(file) {
-  if (!file || !fs.existsSync(file)) throw new Error(`Fichier introuvable : ${file}`);
-  const content = fs.readFileSync(file, 'utf8');
-  const parsed = parseWgConf(content); // lève une erreur si structure absente
-  if (!parsed.interface.privatekey) throw new Error('Config invalide : [Interface] PrivateKey manquant');
-  const dataDir = process.env.GW_DATA_DIR || path.join(ROOT, 'data');
-  const dest = path.join(dataDir, 'tunnel0.conf');
-  writeFileSafe(dest, content);
-  log.ok(`Config importée : ${dest}`);
-  return dest;
+function withDataDir(args) {
+  const dataDir = args.data || process.env.GW_DATA_DIR || path.join(ROOT, 'data');
+  ensureDir(dataDir);
+  process.env.GW_DATA_DIR = dataDir;
+  return dataDir;
 }
-
-/** Diagnostic environnement. */
-async function doctor() {
-  const info = platformInfo();
-  log.info(`Node ${info.node} · ${info.platform}/${info.arch}${info.isTermux ? ' (Termux)' : ''}`);
-  const bin = wireproxyBinPath();
-  const conf = path.join(process.env.GW_DATA_DIR || path.join(ROOT, 'data'), 'tunnel0.conf');
-  log.info(`wireproxy : ${fs.existsSync(bin) ? '✔ présent' : '✖ absent — lancez : ghostwire setup'}`);
-  log.info(`config    : ${fs.existsSync(conf) ? '✔ présente' : '✖ absente — ghostwire import <fichier.conf>'}`);
-  try {
-    const res = await fetch('https://api.ipify.org?format=json', { signal: AbortSignal.timeout(5000) });
-    const { ip } = await res.json();
-    log.ok(`Internet  : OK (IP publique ${ip})`);
-  } catch {
-    log.err('Internet  : injoignable');
-  }
-}
-
-/* ── Commandes ─────────────────────────────────────────────────────────── */
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const cmd = args._[0] || 'help';
-
-  const dataDir = args.data || process.env.GW_DATA_DIR || path.join(ROOT, 'data');
-  ensureDir(dataDir);
-  process.env.GW_DATA_DIR = dataDir;
 
   if (cmd === 'help' || args.h || args.help) { console.log(HELP); return; }
 
@@ -152,22 +124,67 @@ async function main() {
     return;
   }
 
-  if (cmd === 'import') { importConf(args._[1]); return; }
-
-  if (cmd === 'qr') {
-    const { renderQrSvg } = await import('../src/qr.js');
-    const confPath = path.join(dataDir, 'tunnel0.conf');
-    if (!fs.existsSync(confPath)) throw new Error('Aucune config : importez un .conf d\u2019abord');
-    const svg = await renderQrSvg(fs.readFileSync(confPath, 'utf8'));
-    const out = path.join(dataDir, 'config-qr.svg');
-    fs.writeFileSync(out, svg);
-    log.ok(`QR code écrit : ${out}`);
+  if (cmd === 'useradd' || cmd === 'passwd') {
+    const dataDir = withDataDir(args);
+    const [username, password] = args._.slice(1);
+    if (!username || !password) throw new Error(`Usage: ghostwire ${cmd} <username> <password>`);
+    const auth = new AuthStore(dataDir);
+    if (cmd === 'useradd') {
+      const u = auth.addUser(username, password, args.role);
+      log.ok(`User created: ${u.username} (${u.role})`);
+    } else {
+      auth.changePassword(username, password);
+      log.ok(`Password updated for ${String(username).toLowerCase()}`);
+    }
     return;
   }
 
-  if (cmd === 'doctor') { await doctor(); return; }
+  if (cmd === 'import') {
+    const dataDir = withDataDir(args);
+    const file = args._[1];
+    if (!file || !fs.existsSync(file)) throw new Error(`File not found: ${file}`);
+    const content = fs.readFileSync(file, 'utf8');
+    const parsed = parseWgConf(content);
+    if (!parsed.interface.privatekey) throw new Error('Invalid config: [Interface] PrivateKey missing');
+    const dest = path.join(dataDir, 'tunnel0.conf');
+    writeFileSafe(dest, content);
+    log.ok(`Config imported: ${dest}`);
+    return;
+  }
+
+  if (cmd === 'qr') {
+    const dataDir = withDataDir(args);
+    const { renderQrSvg } = await import('../src/qr.js');
+    const confPath = path.join(dataDir, 'tunnel0.conf');
+    if (!fs.existsSync(confPath)) throw new Error('No config yet - import a .conf first');
+    const svg = await renderQrSvg(fs.readFileSync(confPath, 'utf8'));
+    const out = path.join(dataDir, 'config-qr.svg');
+    fs.writeFileSync(out, svg);
+    log.ok(`QR code written: ${out}`);
+    return;
+  }
+
+  if (cmd === 'doctor') {
+    const info = platformInfo();
+    log.info(`Node ${info.node} - ${info.platform}/${info.arch}${info.isTermux ? ' (Termux)' : ''}`);
+    const bin = wireproxyBinPath();
+    const conf = path.join(withDataDir(args), 'tunnel0.conf');
+    log.info(`wireproxy : ${fs.existsSync(bin) ? 'OK (installed)' : 'MISSING - run: ghostwire setup'}`);
+    log.info(`config    : ${fs.existsSync(conf) ? 'OK (present)' : 'MISSING - ghostwire import <file.conf>'}`);
+    const auth = new AuthStore(withDataDir(args));
+    log.info(`accounts  : ${auth.enabled ? auth.listUsers().length + ' user(s)' : 'none (panel is open-mode)'}`);
+    try {
+      const res = await fetch('https://api.ipify.org?format=json', { signal: AbortSignal.timeout(5000) });
+      const { ip } = await res.json();
+      log.ok(`Internet  : OK (public IP ${ip})`);
+    } catch {
+      log.err('Internet  : unreachable');
+    }
+    return;
+  }
 
   if (cmd === 'status') {
+    const dataDir = withDataDir(args);
     const m = new TunnelManager({
       dataDir,
       wireproxy: wireproxyBinPath(),
@@ -179,14 +196,15 @@ async function main() {
 
   if (cmd === 'release') {
     const { buildRelease } = await import('../scripts/release.js');
-    await buildRelease(args._[1] || 'dev');
+    await buildRelease(args._[1] || VERSION);
     return;
   }
 
   if (cmd === 'start') {
+    const dataDir = withDataDir(args);
     const info = platformInfo();
-    log.info(`GhostWire — Node ${info.node} · ${info.platform}/${info.arch}${info.isTermux ? ' (Termux)' : ''}`);
-    if (args.demo) log.warn('MODE DÉMO : pas de tunnel réel, UI testable.');
+    log.info(`GhostWire v${VERSION} - Node ${info.node} - ${info.platform}/${info.arch}${info.isTermux ? ' (Termux)' : ''}`);
+    if (args.demo) log.warn('DEMO MODE: no real tunnel, UI only.');
 
     const manager = new TunnelManager({
       dataDir,
@@ -199,14 +217,16 @@ async function main() {
 
     const host = args.host || process.env.GW_HOST || '0.0.0.0';
     const port = Number(args.port || process.env.GW_PORT || 8080);
-    const { url } = await startServer({ host, port, manager, token: args.token || process.env.GW_TOKEN || '' });
+    const { url } = await startServerIfLoaded({ host, port, manager, args });
 
-    log.ok(`Panneau      : ${url}  (réseau : http://<IP-locale>:${port})`);
-    log.info(`SOCKS5 proxy : 127.0.0.1:${manager.socksPort} (une fois le tunnel démarré)`);
-    log.info('Ctrl+C pour quitter.');
+    log.ok(`Panel      : ${url}  (LAN: http://<host-ip>:${port})`);
+    log.info(`SOCKS5     : 127.0.0.1:${manager.socksPort} (once the tunnel is started)`);
+    const auth = new AuthStore(dataDir);
+    log.info(`Accounts   : ${auth.enabled ? `${auth.listUsers().length} user(s) - login required` : 'none - anyone on the network can use the panel'}`);
+    log.info('Press Ctrl+C to quit.');
 
     if (!args.demo && fs.existsSync(path.join(dataDir, 'autostart'))) {
-      manager.start().catch((e) => log.err(`Autostart : ${e.message}`));
+      manager.start().catch((e) => log.err(`Autostart: ${e.message}`));
     }
 
     const shutdown = () => { manager.stop(); process.exit(0); };
@@ -217,6 +237,11 @@ async function main() {
 
   console.log(HELP);
   process.exitCode = 1;
+}
+
+async function startServerIfLoaded(opts) {
+  const mod = await import('../src/server.js');
+  return mod.startServer(opts);
 }
 
 main().catch((err) => {

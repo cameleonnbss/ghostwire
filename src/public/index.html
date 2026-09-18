@@ -1,92 +1,116 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="color-scheme" content="dark">
-  <title>GhostWire — Panneau VPN</title>
+  <title>GhostWire — VPN Panel</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <div class="bg-grid" aria-hidden="true"></div>
+  <div class="bg-glow" aria-hidden="true"></div>
 
-  <header class="topbar">
-    <div class="brand">
-      <img src="/favicon.svg" alt="" class="logo">
-      <div>
-        <h1>Ghost<span>Wire</span></h1>
-        <p class="tagline">WireGuard userspace · aucun root requis</p>
-      </div>
-    </div>
-    <div class="top-actions">
-      <span id="pill" class="pill unknown">···</span>
-      <button id="btn-settings" class="btn ghost" title="Paramètres">⚙︎</button>
-    </div>
-  </header>
+  <!-- ═══════════ Login view ═══════════ -->
+  <div id="login-view" class="login-view" hidden>
+    <form id="login-form" class="login-card">
+      <img src="/favicon.svg" alt="" class="login-logo">
+      <h1>Ghost<span>Wire</span></h1>
+      <p class="login-sub">Sign in to your VPN panel</p>
+      <label>Username
+        <input id="login-user" autocomplete="username" required>
+      </label>
+      <label>Password
+        <input id="login-pass" type="password" autocomplete="current-password" required>
+      </label>
+      <button class="btn primary full" type="submit">Sign in</button>
+      <p id="login-error" class="login-error" hidden></p>
+    </form>
+  </div>
 
-  <main class="grid">
-    <!-- Colonne gauche : contrôle -->
-    <section class="card control">
-      <h2>Tunnel</h2>
-      <div class="tunnel-visual">
-        <div id="orb" class="orb"></div>
-        <div id="status-text" class="status-text">Interrogation…</div>
-        <div id="uptime" class="uptime"></div>
-      </div>
-
-      <div class="actions">
-        <button id="btn-start" class="btn primary">▶ Démarrer</button>
-        <button id="btn-stop" class="btn danger">■ Arrêter</button>
-        <button id="btn-restart" class="btn">↻ Redémarrer</button>
-      </div>
-
-      <div class="proxies">
-        <div class="proxy" id="proxy-socks">
-          <span class="proto">SOCKS5</span>
-          <code>127.0.0.1:<b>1080</b></code>
-          <button class="btn mini" data-copy="127.0.0.1:1080">copier</button>
-        </div>
-        <div class="proxy" id="proxy-http">
-          <span class="proto">HTTP</span>
-          <code>127.0.0.1:<b>8888</b></code>
-          <button class="btn mini" data-copy="127.0.0.1:8888">copier</button>
+  <!-- ═══════════ Panel view ═══════════ -->
+  <div id="app-view" hidden>
+    <header class="topbar">
+      <div class="brand">
+        <img src="/favicon.svg" alt="" class="logo">
+        <div>
+          <h1>Ghost<span>Wire</span></h1>
+          <p class="tagline">Userspace WireGuard panel</p>
         </div>
       </div>
-
-      <p class="hint">Branchez vos apps sur ces proxys (ou utilisez le mode VPN d'Android via une app du type SocksDroid/Every Proxy) — tout passera dans le tunnel WireGuard.</p>
-    </section>
-
-    <!-- Colonne droite : infos -->
-    <section class="card">
-      <h2>Réseau</h2>
-      <div class="kv">
-        <span>IP publique</span><b id="ip">—</b>
-        <span>Hôte</span><b id="host-info">—</b>
-        <span>Config</span><b id="conf-file">—</b>
-        <span>wireproxy</span><b id="bin-status">—</b>
+      <div class="top-actions">
+        <span id="pill" class="pill">···</span>
+        <button id="btn-users" class="btn ghost" title="Accounts" hidden>Accounts</button>
+        <div class="user-menu">
+          <button id="btn-user" class="btn ghost user-btn" title="Account">
+            <span id="user-badge">–</span> ▾
+          </button>
+          <div id="user-dropdown" class="dropdown" hidden>
+            <button id="btn-passwd" class="dropdown-item">Change password</button>
+            <button id="btn-logout" class="dropdown-item danger">Sign out</button>
+          </div>
+        </div>
       </div>
+    </header>
 
-      <h2>Outils</h2>
-      <div class="actions">
-        <button id="btn-speed" class="btn">⚡ Speedtest</button>
-        <button id="btn-latency" class="btn">📡 Latence</button>
-        <button id="btn-qr" class="btn">🔳 QR code</button>
-      </div>
-      <pre id="tool-output" class="console" hidden></pre>
-    </section>
+    <main class="grid">
+      <!-- Tunnel control -->
+      <section class="card control">
+        <h2>Tunnel</h2>
+        <div class="tunnel-visual">
+          <div id="orb" class="orb"></div>
+          <div id="status-text" class="status-text">Checking…</div>
+          <div id="uptime" class="uptime"></div>
+        </div>
+        <div class="actions">
+          <button id="btn-start" class="btn primary">Start</button>
+          <button id="btn-stop" class="btn danger">Stop</button>
+          <button id="btn-restart" class="btn">Restart</button>
+        </div>
+        <div class="proxies">
+          <div class="proxy">
+            <span class="proto">SOCKS5</span>
+            <code>127.0.0.1:<b id="socks-port">1080</b></code>
+            <button class="btn mini" data-copy="127.0.0.1:1080" data-copy-port="socks">copy</button>
+          </div>
+          <div class="proxy">
+            <span class="proto">HTTP</span>
+            <code>127.0.0.1:<b id="http-port">8888</b></code>
+            <button class="btn mini" data-copy="127.0.0.1:8888" data-copy-port="http">copy</button>
+          </div>
+        </div>
+        <p class="hint">Point any application at these local proxies — its traffic will flow through the WireGuard tunnel.</p>
+      </section>
 
-    <!-- Configuration -->
-    <section class="card wide">
-      <h2>Configuration WireGuard</h2>
-      <div class="tabs">
-        <button class="tab active" data-tab="import">Importer</button>
-        <button class="tab" data-tab="generate">Générer</button>
-        <button class="tab" data-tab="current">Actuelle</button>
-      </div>
+      <!-- Network info & tools -->
+      <section class="card">
+        <h2>Network</h2>
+        <div class="kv">
+          <span>Public IP</span><b id="ip">—</b>
+          <span>Host</span><b id="host-info">—</b>
+          <span>Config</span><b id="conf-file">—</b>
+          <span>Wireproxy</span><b id="bin-status">—</b>
+        </div>
+        <h2>Tools</h2>
+        <div class="actions">
+          <button id="btn-speed" class="btn">Speed test</button>
+          <button id="btn-latency" class="btn">Latency</button>
+          <button id="btn-qr" class="btn">QR code</button>
+        </div>
+        <pre id="tool-output" class="console" hidden></pre>
+      </section>
 
-      <div id="tab-import" class="tab-pane active">
-        <textarea id="conf-input" spellcheck="false" placeholder="[Interface]
+      <!-- Configuration -->
+      <section class="card wide">
+        <h2>WireGuard configuration</h2>
+        <div class="tabs">
+          <button class="tab active" data-tab="import">Import</button>
+          <button class="tab" data-tab="generate">Generate</button>
+          <button class="tab" data-tab="current">Current</button>
+        </div>
+
+        <div id="tab-import" class="tab-pane active">
+          <textarea id="conf-input" spellcheck="false" placeholder="[Interface]
 PrivateKey = …
 Address = 10.x.x.x/32
 DNS = 1.1.1.1
@@ -95,51 +119,61 @@ DNS = 1.1.1.1
 PublicKey = …
 Endpoint = host:port
 AllowedIPs = 0.0.0.0/0"></textarea>
+          <div class="actions">
+            <button id="btn-import" class="btn primary">Save config</button>
+            <label class="btn file-btn">Open .conf file
+              <input type="file" id="conf-file-input" accept=".conf,.txt" hidden>
+            </label>
+          </div>
+        </div>
+
+        <div id="tab-generate" class="tab-pane">
+          <p class="hint">Generate a fresh key pair and a ready-to-edit client config. Paste your server's public key, then save it in the Import tab.</p>
+          <div class="gen-form">
+            <label>Server endpoint <input id="gen-endpoint" placeholder="vpn.example.com:51820"></label>
+            <label>Client address <input id="gen-address" placeholder="10.66.66.2/32"></label>
+            <label>AllowedIPs <input id="gen-allowed" value="0.0.0.0/0"></label>
+          </div>
+          <div class="actions">
+            <button id="btn-genkey" class="btn primary">Generate keys + config</button>
+          </div>
+        </div>
+
+        <div id="tab-current" class="tab-pane">
+          <pre id="conf-current" class="console">No config loaded.</pre>
+          <div class="actions">
+            <button id="btn-refresh-conf" class="btn">Refresh</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Accounts (admin only) -->
+      <section id="users-card" class="card wide" hidden>
+        <h2>Accounts</h2>
+        <div id="users-list" class="users-list"></div>
         <div class="actions">
-          <button id="btn-import" class="btn primary">Enregistrer la config</button>
-          <label class="btn file-btn">📂 Choisir un fichier .conf
-            <input type="file" id="conf-file-input" accept=".conf,.txt" hidden>
-          </label>
+          <button id="btn-add-user" class="btn primary">Add account</button>
         </div>
-      </div>
+      </section>
 
-      <div id="tab-generate" class="tab-pane">
-        <p class="hint">Génère un pair de clés + une PSK prêtes à coller côté serveur/serveur VPN, et pré-remplit l'onglet Importer.</p>
-        <div class="actions">
-          <button id="btn-genkey" class="btn primary">🔑 Générer clés + config</button>
-        </div>
-        <div class="gen-form">
-          <label>Endpoint du serveur <input id="gen-endpoint" placeholder="vpn.exemple.com:51820"></label>
-          <label>Adresse client <input id="gen-address" placeholder="10.66.66.2/32"></label>
-          <label>AllowedIPs <input id="gen-allowed" value="0.0.0.0/0"></label>
-        </div>
-      </div>
+      <!-- Logs -->
+      <section class="card wide">
+        <h2>Tunnel log</h2>
+        <pre id="logs" class="console">—</pre>
+      </section>
+    </main>
 
-      <div id="tab-current" class="tab-pane">
-        <pre id="conf-current" class="console">Aucune config chargée.</pre>
-        <div class="actions">
-          <button id="btn-refresh-conf" class="btn">↻ Rafraîchir</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- Logs -->
-    <section class="card wide">
-      <h2>Journal du tunnel</h2>
-      <pre id="logs" class="console">—</pre>
-    </section>
-  </main>
-
-  <footer class="foot">
-    <span>GhostWire · auto-hébergé · Termux / Linux / Windows / macOS</span>
-    <span id="panel-uptime"></span>
-  </footer>
+    <footer class="foot">
+      <span>GhostWire · self-hosted · Termux / Linux / Windows / macOS</span>
+      <span id="panel-uptime"></span>
+    </footer>
+  </div>
 
   <div id="modal" class="modal" hidden>
     <div class="modal-box">
-      <h3 id="modal-title">QR code</h3>
+      <h3 id="modal-title">Dialog</h3>
       <div id="modal-body" class="modal-body"></div>
-      <button class="btn" id="modal-close">Fermer</button>
+      <div id="modal-actions" class="modal-actions"></div>
     </div>
   </div>
 

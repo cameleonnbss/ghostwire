@@ -1,0 +1,35 @@
+name: Android
+
+on:
+  push:
+    branches: [main]
+    paths: ['android/**', 'scripts/build-android*']
+  pull_request:
+    branches: [main]
+    paths: ['android/**', 'scripts/build-android*']
+  workflow_dispatch:
+
+jobs:
+  apk:
+    name: Build APK (toolchain)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'build-tools;36.0.0 platforms;android-36'
+
+      - name: Build signed APK
+        run: bash scripts/build-android.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GhostWire-apk
+          path: android/GhostWire.apk
+          if-no-files-found: error

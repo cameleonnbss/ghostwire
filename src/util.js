@@ -47,12 +47,12 @@ export async function downloadFile(url, dest) {
       current = new URL(res.headers.get('location'), current).toString();
       continue;
     }
-    if (!res.ok) throw new Error(`Téléchargement échoué (${res.status}) : ${current}`);
+    if (!res.ok) throw new Error(`Download failed (${res.status}): ${current}`);
     fs.mkdirSync(path.dirname(dest), { recursive: true });
     await pipeline(Readable.fromWeb(res.body), fs.createWriteStream(dest));
     return dest;
   }
-  throw new Error(`Trop de redirections en téléchargeant ${url}`);
+  throw new Error(`Too many redirects while downloading ${url}`);
 }
 
 /** Assure qu'un dossier existe. */
@@ -82,7 +82,7 @@ export async function findFreePort(start, host = '127.0.0.1') {
     });
     if (free) return port;
   }
-  throw new Error(`Aucun port libre trouvé à partir de ${start}`);
+  throw new Error(`No free port found from ${start}`);
 }
 
 /** Formate une taille en octets vers une chaîne lisible. */

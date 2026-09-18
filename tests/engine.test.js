@@ -45,11 +45,11 @@ describe('clés WireGuard', () => {
     assert.equal(pub1, pub2);
   });
 
-  it('rejette une clé privée de mauvaise taille', () => {
-    assert.throws(() => publicKeyFromPrivate('aGVsbG8='), /32 octets/);
+  it('rejects a private key of the wrong size', () => {
+    assert.throws(() => publicKeyFromPrivate('aGVsbG8='), /32 bytes/);
   });
 
-  it('génère une PSK de 32 octets', () => {
+  it('generates a 32-byte PSK', () => {
     const psk = generatePresharedKey();
     assert.equal(Buffer.from(psk, 'base64').length, 32);
   });

@@ -20,6 +20,11 @@ dist/
 build/
 *.zip
 *.tar.gz
+*.apk
+.toolchain/
+android/app/build/
+desktop-windows/**/bin/
+desktop-windows/**/obj/
 
 # OS
 .DS_Store

@@ -47,18 +47,18 @@ describe('TunnelManager', () => {
     assert.match(out, /\[Interface\]/);
   });
 
-  it('start() échoue proprement sans config', async () => {
+  it('start() fails cleanly without a config', async () => {
     const dir = tempDir();
     const m = new TunnelManager({ dataDir: dir });
-    await assert.rejects(() => m.start(), /Config WireGuard introuvable/);
+    await assert.rejects(() => m.start(), /config not found/i);
     assert.equal(m.status, 'error');
   });
 
-  it('start() échoue proprement sans binaire', async () => {
+  it('start() fails cleanly without the binary', async () => {
     const dir = tempDir();
     writeConf(dir);
-    const m = new TunnelManager({ dataDir: dir, wireproxy: path.join(dir, 'nexistepas') });
-    await assert.rejects(() => m.start(), /setup/);
+    const m = new TunnelManager({ dataDir: dir, wireproxy: path.join(dir, 'nonexistent') });
+    await assert.rejects(() => m.start(), /ghostwire setup/);
   });
 
   it('statusSummary expose un état cohérent', () => {

@@ -1,68 +1,44 @@
-# 📱 GhostWire sur Android (Termux)
+# GhostWire on Android (Termux)
 
-GhostWire fonctionne sur Android **sans root** : le tunnel WireGuard tourne en
-userspace (wireproxy) et expose des proxys SOCKS5/HTTP locaux.
+GhostWire runs on Android **without root**: the WireGuard tunnel runs in
+userspace (wireproxy) and exposes local SOCKS5/HTTP proxies.
 
-## 1. Prérequis
+## 1. Prerequisites
 
-Depuis **F-Droid** (recommandé) ou Play Store, installez **Termux**, puis :
-
-```bash
-pkg update && pkg upgrade
-pkg install nodejs-lts git openssh
-termux-setup-storage        # accès au stockage (optionnel)
-```
-
-## 2. Installation
+Install **Termux** from F-Droid (recommended) or Play Store, then:
 
 ```bash
-git clone https://github.com/OWNER/ghostwire.git
-cd ghostwire
-npm install --omit=dev
-node bin/ghostwire.js setup   # télécharge wireproxy linux_arm64
-node bin/ghostwire.js doctor  # vérification
+pkg update -y && pkg upgrade -y
+pkg install -y nodejs-lts git openssh
+termux-setup-storage        # optional: storage access
 ```
 
-## 3. Empêcher Android de tuer Termux
+## 2. Install — copy-paste block
 
 ```bash
-pkg install termux-services termux-api
-termux-wake-lock              # CPU maintenu actif
+git clone https://github.com/cameleonnbss/ghostwire.git ~/ghostwire
+cd ~/ghostwire
+npm install --omit=dev --no-audit --no-fund
+node bin/ghostwire.js setup
+node bin/ghostwire.js doctor
+node bin/ghostwire.js useradd admin mypassword
+node bin/ghostwire.js start
 ```
 
-Dans les réglages Android : *Paramètres → Applications → Termux → Batterie →
-Sans restriction* (désactivez l'optimisation de batterie).
+The panel is now on `http://127.0.0.1:8080` (phone browser) or
+`http://<phone-wifi-ip>:8080` from any device on the same network.
 
-## 4. Démarrer le panneau
+## 3. Keep Android from killing Termux
 
 ```bash
-GW_TOKEN=$(head -c 12 /dev/urandom | od -An -tx1 | tr -d ' \n') \
-  node bin/ghostwire.js start
+pkg install -y termux-services termux-api
+termux-wake-lock
 ```
 
-Ouvrez `http://127.0.0.1:8080` dans le navigateur du téléphone
-(ou `http://<IP-WiFi-du-téléphone>:8080` depuis un PC du même réseau).
+Android settings: *Apps -> Termux -> Battery -> Unrestricted*
+(disable battery optimization).
 
-## 5. Router le trafic du téléphone dans le tunnel
-
-GhostWire expose `socks5://127.0.0.1:1080`. Pour que **tout Android** passe
-dedans, trois options :
-
-| Option | Principe |
-|---|---|
-| **App WireGuard officielle + proxy** | Certaines configurations supportent *Include proxies* — importez le QR depuis l'UI |
-| **Every Proxy** (Play Store/F-Droid) | Expose le SOCKS5 de Termux au système ; à coupler avec le paramètre *proxy Wi-Fi* d'Android |
-| **SocksDroid / ProxyDroid** (root) | Tunnel SOCKS5 → interface VPN complète |
-
-Simple et fiable sans root : **proxy Wi-Fi** — *Paramètres → Wi-Fi → modifier le
-réseau → Proxy → manuel* avec `127.0.0.1:1080` ne fonctionne que pour le
-navigateur ; pour un vrai VPN système utilisez l'app WireGuard officielle avec
-le fichier `.conf` (QR code de l'UI) si vous avez un serveur WireGuard, et
-GhostWire sert alors de panneau de gestion/génération de configs.
-
-## 6. Service en arrière-plan (sv-enable)
-
-Avec `termux-services` :
+## 4. Run as a background service (survives terminal close)
 
 ```bash
 mkdir -p $PREFIX/var/service/ghostwire/log
@@ -76,14 +52,26 @@ sv-enable ghostwire
 sv up ghostwire
 ```
 
-Commandes : `sv up|down|restart|status ghostwire`.
+Commands: `sv up|down|restart|status ghostwire`.
 
-## 7. Dépannage
+## 5. Route the phone's traffic through the tunnel
 
-| Problème | Solution |
+GhostWire exposes `socks5://127.0.0.1:1080`. Options:
+
+| Option | How |
 |---|---|
-| `wireproxy` non exécutable | Certains FS ignorent chmod → `bash bin/wireproxy` marche toujours via `GW_WIREPROXY` |
-| Le tunnel meurt en arrière-plan | `termux-wake-lock` + désactiver l'optimisation batterie |
-| Port 8080 occupé | `node bin/ghostwire.js start --port 9090` |
-| Test débit impossible | Le réseau bloqué bloque speed.cloudflare.com → normal dans certains pays, utilisez Latence |
-| Stockage inaccessible | Relancez `termux-setup-storage` |
+| **GhostWire Android app** (recommended) | Install `GhostWire.apk` from Releases, point it at the panel, control everything from the phone |
+| **Official WireGuard app** | Import the QR code from the panel (works when you have a real WireGuard server; GhostWire then serves as config manager) |
+| **Every Proxy / SocksDroid** | Expose Termux's SOCKS5 to Android's Wi-Fi proxy setting (browser-level only) |
+| **Root only** | ProxyDroid turns the SOCKS5 into a full system VPN |
+
+## 6. Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `wireproxy` not executable | Some filesystems ignore chmod; check `GW_WIREPROXY` env var points at the right path |
+| Tunnel dies in background | `termux-wake-lock` + disable battery optimization |
+| Port 8080 busy | `node bin/ghostwire.js start --port 9090` |
+| Speed test fails | speed.cloudflare.com may be blocked on your network; use *Latency* instead |
+| Storage inaccessible | Run `termux-setup-storage` again |
+| Forgot panel password | `node bin/ghostwire.js passwd admin newpassword` |
