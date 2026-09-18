@@ -4,18 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="color-scheme" content="dark">
-  <title>GhostWire — VPN Panel</title>
+  <title>GhostWire — VPN</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <div class="bg-glow" aria-hidden="true"></div>
 
-  <!-- ═══════════ Login view ═══════════ -->
+  <!-- ============ Login view ============ -->
   <div id="login-view" class="login-view" hidden>
     <form id="login-form" class="login-card">
       <img src="/favicon.svg" alt="" class="login-logo">
-      <h1>Ghost<span>Wire</span></h1>
+      <h1>GhostWire</h1>
       <p class="login-sub">Sign in to your VPN panel</p>
       <label>Username
         <input id="login-user" autocomplete="username" required>
@@ -28,18 +27,18 @@
     </form>
   </div>
 
-  <!-- ═══════════ Panel view ═══════════ -->
+  <!-- ============ Panel view ============ -->
   <div id="app-view" hidden>
     <header class="topbar">
       <div class="brand">
         <img src="/favicon.svg" alt="" class="logo">
         <div>
-          <h1>Ghost<span>Wire</span></h1>
-          <p class="tagline">Userspace WireGuard panel</p>
+          <h1>GhostWire</h1>
+          <p class="tagline">Userspace WireGuard VPN</p>
         </div>
       </div>
       <div class="top-actions">
-        <span id="pill" class="pill">···</span>
+        <span id="pill" class="pill">...</span>
         <button id="btn-users" class="btn ghost" title="Accounts" hidden>Accounts</button>
         <div class="user-menu">
           <button id="btn-user" class="btn ghost user-btn" title="Account">
@@ -53,54 +52,55 @@
       </div>
     </header>
 
-    <main class="grid">
-      <!-- Tunnel control -->
-      <section class="card control">
-        <h2>Tunnel</h2>
-        <div class="tunnel-visual">
-          <div id="orb" class="orb"></div>
-          <div id="status-text" class="status-text">Checking…</div>
-          <div id="uptime" class="uptime"></div>
+    <main class="shell">
+      <!-- Mullvad-style secure connection screen -->
+      <section class="secure" aria-label="Secure connection">
+        <div class="secure-visual">
+          <div id="orb" class="orb"><img src="/favicon.svg" alt="" class="orb-icon"></div>
         </div>
-        <div class="actions">
-          <button id="btn-start" class="btn primary">Start</button>
-          <button id="btn-stop" class="btn danger">Stop</button>
-          <button id="btn-restart" class="btn">Restart</button>
+        <div class="secure-text">
+          <p id="status-text" class="secure-title">Checking status</p>
+          <p id="uptime" class="secure-sub"></p>
         </div>
-        <div class="proxies">
-          <div class="proxy">
-            <span class="proto">SOCKS5</span>
-            <code>127.0.0.1:<b id="socks-port">1080</b></code>
-            <button class="btn mini" data-copy="127.0.0.1:1080" data-copy-port="socks">copy</button>
-          </div>
-          <div class="proxy">
-            <span class="proto">HTTP</span>
-            <code>127.0.0.1:<b id="http-port">8888</b></code>
-            <button class="btn mini" data-copy="127.0.0.1:8888" data-copy-port="http">copy</button>
-          </div>
+        <div class="secure-actions">
+          <button id="btn-start" class="btn primary big">Connect</button>
+          <button id="btn-stop" class="btn danger big">Disconnect</button>
+          <button id="btn-restart" class="btn big">Reconnect</button>
         </div>
-        <p class="hint">Point any application at these local proxies — its traffic will flow through the WireGuard tunnel.</p>
+        <div class="out-info">
+          <span class="out-label">Public IP</span>
+          <b id="ip">—</b>
+        </div>
+        <div class="out-info">
+          <span class="out-label">Local proxies</span>
+          <span class="proxies">
+            <button class="btn mini" data-copy="127.0.0.1:1080" data-copy-port="socks">SOCKS5 127.0.0.1:<b id="socks-port">1080</b> · copy</button>
+            <button class="btn mini" data-copy="127.0.0.1:8888" data-copy-port="http">HTTP 127.0.0.1:<b id="http-port">8888</b> · copy</button>
+          </span>
+        </div>
       </section>
 
-      <!-- Network info & tools -->
-      <section class="card">
-        <h2>Network</h2>
-        <div class="kv">
-          <span>Public IP</span><b id="ip">—</b>
-          <span>Host</span><b id="host-info">—</b>
-          <span>Config</span><b id="conf-file">—</b>
-          <span>Wireproxy</span><b id="bin-status">—</b>
+      <section class="row">
+        <div class="card">
+          <h2>Status</h2>
+          <div class="kv">
+            <span>Host</span><b id="host-info">—</b>
+            <span>Config</span><b id="conf-file">—</b>
+            <span>wireproxy</span><b id="bin-status">—</b>
+            <span>Panel</span><b id="panel-uptime">—</b>
+          </div>
         </div>
-        <h2>Tools</h2>
-        <div class="actions">
-          <button id="btn-speed" class="btn">Speed test</button>
-          <button id="btn-latency" class="btn">Latency</button>
-          <button id="btn-qr" class="btn">QR code</button>
+        <div class="card">
+          <h2>Tools</h2>
+          <div class="actions">
+            <button id="btn-speed" class="btn">Speed test</button>
+            <button id="btn-latency" class="btn">Latency</button>
+            <button id="btn-qr" class="btn">QR code</button>
+          </div>
+          <pre id="tool-output" class="console" hidden></pre>
         </div>
-        <pre id="tool-output" class="console" hidden></pre>
       </section>
 
-      <!-- Configuration -->
       <section class="card wide">
         <h2>WireGuard configuration</h2>
         <div class="tabs">
@@ -147,7 +147,6 @@ AllowedIPs = 0.0.0.0/0"></textarea>
         </div>
       </section>
 
-      <!-- Accounts (admin only) -->
       <section id="users-card" class="card wide" hidden>
         <h2>Accounts</h2>
         <div id="users-list" class="users-list"></div>
@@ -156,7 +155,6 @@ AllowedIPs = 0.0.0.0/0"></textarea>
         </div>
       </section>
 
-      <!-- Logs -->
       <section class="card wide">
         <h2>Tunnel log</h2>
         <pre id="logs" class="console">—</pre>
@@ -164,8 +162,7 @@ AllowedIPs = 0.0.0.0/0"></textarea>
     </main>
 
     <footer class="foot">
-      <span>GhostWire · self-hosted · Termux / Linux / Windows / macOS</span>
-      <span id="panel-uptime"></span>
+      <span>GhostWire · self-hosted · Android / Linux / Windows / macOS</span>
     </footer>
   </div>
 

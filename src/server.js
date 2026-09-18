@@ -75,7 +75,7 @@ export function createApp(opts = {}) {
 
     try {
       /* ── Auth & public endpoints ─────────────────────────────────── */
-      if (p === '/api/ping') return json(res, 200, { ok: true, name: 'ghostwire', version: '1.1.0' });
+      if (p === '/api/ping') return json(res, 200, { ok: true, name: 'ghostwire', version: '1.2.0' });
 
       if (p === '/api/auth/state') {
         return json(res, 200, { authEnabled: auth.enabled });

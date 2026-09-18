@@ -212,8 +212,8 @@ async function refresh() {
   try {
     const s = await api('/api/status');
     $('#status-text').textContent = {
-      running: 'Tunnel active', starting: 'Starting…', error: 'Error',
-      stopped: 'Tunnel stopped',
+      running: 'Secured', starting: 'Connecting…', error: 'Error',
+      stopped: 'Unsecured',
     }[s.status] || s.status;
     $('#pill').textContent = s.status.toUpperCase();
     $('#pill').className = `pill ${s.status}`;
@@ -226,7 +226,7 @@ async function refresh() {
     $('#socks-port').textContent = s.socksPort;
     $('#http-port').textContent = s.httpPort;
     const last = (s.logTail || []).slice(-8).join('\n');
-    $('#logs').textContent = last || '— (start the tunnel to see logs)';
+    $('#logs').textContent = last || '— (connect to see logs)';
     $('#panel-uptime').textContent = `panel up ${fmtUptime(s.panelUptimeSec)}`;
     $('#btn-start').disabled = s.status === 'running' || s.status === 'starting';
     $('#btn-stop').disabled = s.status !== 'running' && s.status !== 'starting';

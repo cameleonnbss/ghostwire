@@ -16,7 +16,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
         node: [20, 22, 24]
         exclude:
-          # Réduire la matrice : Windows/macOS sur une seule version LTS
+          # Keep the matrix lean: one LTS version for Windows/macOS
           - os: windows-latest
             node: 20
           - os: macos-latest
@@ -33,17 +33,17 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
 
-      - name: Installation des dépendances
+      - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Vérification syntaxe
+      - name: Syntax check
         run: npm run check
 
       - name: Tests
         run: npm test
 
   smoke:
-    name: Smoke test serveur (Ubuntu)
+    name: Server smoke test (Ubuntu)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -52,7 +52,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm install --no-audit --no-fund
-      - name: Démarre le panneau et vérifie /api/ping
+      - name: Start the panel and check /api/ping
         run: |
           node bin/ghostwire.js start --port 8123 --demo &
           sleep 3

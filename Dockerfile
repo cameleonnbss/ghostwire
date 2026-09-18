@@ -1,19 +1,19 @@
-# GhostWire — image conteneur (userspace, aucun privilège requis)
+# GhostWire - container image (userspace WireGuard, no privileges required)
 FROM node:22-alpine
 
 WORKDIR /app
 
-# Dépendances d'abord (meilleur cache de build)
+# Dependencies first (better build cache)
 COPY package.json package-lock.json* ./
 RUN npm install --omit=dev --no-audit --no-fund
 
-# Code + scripts d'install
+# Code + install scripts
 COPY bin ./bin
 COPY src ./src
 COPY scripts ./scripts
 COPY install.sh LICENSE README.md .env.example ./
 
-# wireproxy pour linux/amd64 (l'image cible amd64 ; buildx multi-arch possible)
+# wireproxy for linux/amd64 (image targets amd64; multi-arch possible via buildx)
 RUN node bin/ghostwire.js setup && rm -rf bin/*.tar.gz
 
 ENV GW_PORT=8080 \

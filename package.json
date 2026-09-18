@@ -1,7 +1,7 @@
 {
   "name": "ghostwire",
-  "version": "1.1.0",
-  "description": "GhostWire — self-hosted VPN panel with accounts, a modern web UI and native companion apps. WireGuard userspace; runs on Android (Termux), Linux, Windows, macOS.",
+  "version": "1.2.0",
+  "description": "GhostWire - Mullvad-inspired, self-hosted VPN panel with accounts, a modern web UI and native companion apps. WireGuard userspace; runs on Android (Termux), Linux, Windows, macOS.",
   "type": "module",
   "main": "src/index.js",
   "bin": {
@@ -14,13 +14,18 @@
     "vpn",
     "wireguard",
     "wireproxy",
+    "mullvad",
+    "anonymity",
+    "privacy",
     "self-hosted",
     "termux",
     "android",
     "linux",
     "windows",
+    "macos",
     "tunnel",
-    "proxy"
+    "proxy",
+    "socks5"
   ],
   "license": "MIT",
   "scripts": {
